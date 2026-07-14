@@ -1,319 +1,164 @@
 # FastAPI Structure
 
-A production-ready, scalable FastAPI project structure designed to help developers build clean, maintainable, and enterprise-grade REST APIs.
-
-This boilerplate follows a layered architecture that separates routing, business logic, database access, configuration, and utilities, making it easy to scale from small projects to large applications.
-
----
+A minimal, modular boilerplate showing how to organize a **FastAPI** project with async SQLAlchemy, JWT-based authentication, and a clean separation between routers, views, schemas, and models.
 
 ## ✨ Features
 
-- 🚀 FastAPI
-- 📁 Clean and scalable folder structure
-- ⚙️ Environment-based configuration
-- 🔐 Authentication ready
-- 🗄️ SQLAlchemy integration
-- 🔄 Alembic migration support
-- 📦 Modular routers
-- ✅ Pydantic validation
-- 🧪 Testing ready
-- 📝 Structured logging
-- 🐳 Docker support
-- 📚 Automatic Swagger & ReDoc documentation
+- ⚡ **FastAPI** with async request handling
+- 🗄️ **SQLAlchemy (async)** ORM using `asyncpg` for PostgreSQL
+- 🔐 **JWT authentication** (login / signup) with `passlib` (bcrypt) password hashing
+- ⚙️ **Environment-based configuration** via `pydantic-settings` + `.env`
+- 📦 **Feature-based module layout** — each domain (e.g. `accounts`) owns its router, views, schemas, and models
+- ✅ **Pydantic** request/response validation
 
----
-
-# Project Structure
+## Project Structure
 
 ```text
 .
-├── app/
-│   ├── api/
-│   │   ├── v1/
-│   │   ├── dependencies/
-│   │   └── routes/
-│   │
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── security.py
-│   │   └── logging.py
-│   │
-│   ├── database/
-│   │   ├── session.py
-│   │   ├── base.py
-│   │   └── migrations/
-│   │
-│   ├── models/
-│   │
-│   ├── schemas/
-│   │
-│   ├── services/
-│   │
-│   ├── repositories/
-│   │
-│   ├── utils/
-│   │
-│   ├── middleware/
-│   │
-│   ├── exceptions/
-│   │
-│   └── main.py
+├── api/
+│   └── accounts/                # Feature module: accounts/auth
+│       ├── __init__.py
+│       ├── router.py             # Registers routes -> views
+│       ├── models/
+│       │   └── user.py           # SQLAlchemy User model
+│       ├── schemas/
+│       │   └── users.py          # Pydantic request schemas (Login/Signup)
+│       └── views/
+│           └── auth.py           # Business logic for login/signup
 │
-├── tests/
-├── .env.example
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+├── core/
+│   ├── config.py                  # App settings (Settings, loaded from .env)
+│   └── helper.py                  # Password hashing & JWT token helpers
+│
+├── db/
+│   ├── base.py                    # Imports Base + all models (for metadata)
+│   └── session.py                 # Async engine, session factory, get_db dependency
+│
+├── main.py                        # FastAPI app entrypoint
+└── requirements.txt
 ```
 
----
+### How a request flows
 
-# Installation
+```
+Client
+  │
+  ▼
+Router (api/accounts/router.py)
+  │
+  ▼
+View (api/accounts/views/auth.py)  ── business logic
+  │
+  ▼
+Schema (api/accounts/schemas/users.py) ── validation
+  │
+  ▼
+Model (api/accounts/models/user.py) ── SQLAlchemy ORM
+  │
+  ▼
+Database (db/session.py — async PostgreSQL via asyncpg)
+```
 
-Clone the repository
+## Tech Stack
+
+| Category        | Library                                  |
+|------------------|-------------------------------------------|
+| Web framework    | FastAPI                                   |
+| ASGI server      | Uvicorn                                   |
+| ORM              | SQLAlchemy (async)                        |
+| Database driver  | asyncpg / psycopg2                        |
+| Validation       | Pydantic v2, pydantic-settings            |
+| Auth             | PyJWT, passlib (bcrypt)                   |
+| Config           | python-dotenv                             |
+
+## Getting Started
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/NikhilRPandey1/fastapi_structure.git
-
 cd fastapi_structure
 ```
 
-Create a virtual environment
+### 2. Create and activate a virtual environment
 
 ```bash
 python -m venv venv
-```
 
-Activate the environment
-
-### Linux / macOS
-
-```bash
+# Linux / macOS
 source venv/bin/activate
-```
 
-### Windows
-
-```bash
+# Windows
 venv\Scripts\activate
 ```
 
-Install dependencies
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
+### 4. Configure environment variables
 
-# Environment Variables
-
-Copy
-
-```bash
-cp .env.example .env
-```
-
-Update the values inside `.env`.
-
-Example
+Create a `.env` file in the project root with the following keys (all are required by `core/config.py`):
 
 ```env
-APP_NAME=FastAPI Structure
-DEBUG=True
-
-DATABASE_URL=postgresql://user:password@localhost:5432/database
-
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/database
 SECRET_KEY=your-secret-key
-
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+DEBUG=True
+ALGORITHM=HS256
 ```
 
----
-
-# Running the Application
-
-Development
+### 5. Run the application
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn main:app --reload
 ```
 
-Production
+On startup, the app automatically creates all tables defined on `Base.metadata` (see `main.py`) against the configured database.
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+## API Documentation
 
----
+Once the server is running, interactive docs are available at:
 
-# API Documentation
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-Once the server is running:
+## Available Endpoints
 
-Swagger UI
+All routes are mounted under the `/api` prefix.
 
-```
-http://localhost:8000/docs
-```
+| Method | Endpoint             | Description                  |
+|--------|-----------------------|-------------------------------|
+| POST   | `/api/auth/signup`    | Create a new user account     |
+| POST   | `/api/auth/login`     | Authenticate and get a JWT    |
 
-ReDoc
+## Adding a New Module
 
-```
-http://localhost:8000/redoc
-```
-
----
-
-# Architecture
-
-The project follows a layered architecture.
+Follow the pattern used by `api/accounts` to add a new feature (e.g. `api/products`):
 
 ```
-Client
-    │
-    ▼
-Router
-    │
-    ▼
-Service
-    │
-    ▼
-Repository
-    │
-    ▼
-Database
+api/<module>/
+├── __init__.py
+├── router.py       # APIRouter + add_api_route registrations
+├── models/         # SQLAlchemy models
+├── schemas/        # Pydantic request/response schemas
+└── views/          # Business logic (called by router)
 ```
 
-Each layer has a single responsibility.
+Then:
 
-- **Router** → Handles HTTP requests
-- **Service** → Business logic
-- **Repository** → Database operations
-- **Schema** → Request/Response validation
-- **Model** → Database models
+1. Import the new model in `db/base.py` so its table is included in `Base.metadata`.
+2. Include the new router in `main.py`:
+   ```python
+   app.include_router(your_router, prefix="/api")
+   ```
 
----
-
-# Adding a New Module
-
-Create:
-
-```
-models/
-schemas/
-services/
-repositories/
-routers/
-```
-
-Register the router in the API.
-
-This keeps every feature independent and easy to maintain.
-
----
-
-# Running Tests
-
-```bash
-pytest
-```
-
-With coverage
-
-```bash
-pytest --cov=app
-```
-
----
-
-# Docker
-
-Build
-
-```bash
-docker compose build
-```
-
-Run
-
-```bash
-docker compose up
-```
-
----
-
-# Code Quality
-
-Format
-
-```bash
-black .
-```
-
-Lint
-
-```bash
-ruff check .
-```
-
-Sort imports
-
-```bash
-isort .
-```
-
----
-
-# Tech Stack
-
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Alembic
-- PostgreSQL
-- Uvicorn
-- Docker
-- Pytest
-
----
-
-# Best Practices
-
-- Modular architecture
-- Dependency Injection
-- Environment-based configuration
-- Repository Pattern
-- Service Layer
-- Type hints
-- Pydantic validation
-- Async support
-- API versioning
-- Centralized exception handling
-
----
-
-# Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push your branch
-5. Open a Pull Request
-
----
-
-# License
+## License
 
 This project is licensed under the MIT License.
-
----
 
 ## Author
 
 **Nikhil Pandey**
-
 GitHub: https://github.com/NikhilRPandey1
